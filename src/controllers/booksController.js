@@ -10,9 +10,9 @@ exports.getBooksList = async (req, res) => {
 };
 
 exports.addBook = async (req, res) => {
-  const { title, subtitle, author, publisher, publisher_date, edition, language, page_count, description, cover_image_url, images, isbn, genre } = req.body;
+  const { title, subtitle, author, publisher, publisher_date, edition, language, page_count, description, cover_image_url, images, isbn, genre, currently_reading, mark_as_read } = req.body;
   try {
-    const book = new Books({ title, subtitle, author, publisher, publisher_date, edition, language, page_count, description, cover_image_url, images, isbn, genre });
+    const book = new Books({ title, subtitle, author, publisher, publisher_date, edition, language, page_count, description, cover_image_url, images, isbn, genre, currently_reading, mark_as_read });
     await book.save();
     res.status(201).json(book);
   } catch (err) {
