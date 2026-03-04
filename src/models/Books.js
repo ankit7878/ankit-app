@@ -14,8 +14,8 @@ const BooksSchema = new mongoose.Schema(
     cover_image_url: { type: String, required: false },
     images: { type: Array, required: false },
     isbn: { type: String },
-    currently_reading: { type: Array, required: true},
-    mark_as_read: { type: Array, required: true},
+    currently_reading: { type: Boolean, required: true},
+    mark_as_read: { type: Boolean, required: true},
     genre: { type: Array, required: true}
   },
   { timestamps: true }
