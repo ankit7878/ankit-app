@@ -52,3 +52,27 @@ exports.deleteBook = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+exports.markAsRead = async (req, res) => {
+  const { bookId } = req.body;
+  try {
+    if (!bookId) return res.status(400).json({ message: 'bookId is required' });
+    const book = await Books.findByIdAndUpdate(bookId, { mark_as_read: true }, { new: true });
+    if (!book) return res.status(404).json({ message: 'Book not found' });
+    res.json({ success: true, message: 'Book marked as read', book });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.markAsUnread = async (req, res) => {
+  const { bookId } = req.body;
+  try {
+    if (!bookId) return res.status(400).json({ message: 'bookId is required' });
+    const book = await Books.findByIdAndUpdate(bookId, { mark_as_read: false }, { new: true });
+    if (!book) return res.status(404).json({ message: 'Book not found' });
+    res.json({ success: true, message: 'Book marked as unread', book });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
