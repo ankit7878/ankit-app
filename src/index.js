@@ -69,11 +69,61 @@ function getVisitorIP(req) {
         .trim();
 }
 
-// --- Helper: Fetch geolocation using built-in https module ---
-function getGeolocation(ip) {
+// --- Helper: Reverse geocode latitude/longitude to get city/country ---
+function reverseGeocode(latitude, longitude) {
     return new Promise((resolve) => {
-        const url = `https://api.ip-geo-block.com/api/ip-geolocation?ipaddr=${ip}`;
-        // const url = `https://geolite.maxmind.com/geoip/v2.1/city/${ip}`;
+        // Using Nominatim (OSM) - free, no API key needed
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+        
+        const request = https.get(url, { timeout: 5000, headers: { 'User-Agent': 'PortfolioVisitorTracker' } }, (res) => {
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    console.log(`   📡 Reverse Geocoding Response:`, JSON.stringify(parsed));
+                    
+                    if (parsed.address) {
+                        const address = parsed.address;
+                        const country = address.country || 'Unknown';
+                        const city = address.city || address.town || address.village || 'Unknown';
+                        
+                        const result = {
+                            country: country,
+                            city: city,
+                            lat: latitude,
+                            lng: longitude
+                        };
+                        console.log(`   ✅ Reverse geocoded:`, result);
+                        resolve(result);
+                    } else {
+                        console.log(`   ⚠️ No address found in response`);
+                        resolve(null);
+                    }
+                } catch (e) {
+                    console.log(`   ❌ JSON parse error:`, e.message);
+                    resolve(null);
+                }
+            });
+        });
+        
+        request.on('error', (err) => {
+            console.log(`   ❌ Request error:`, err.message);
+            resolve(null);
+        });
+        
+        request.on('timeout', () => {
+            console.log(`   ⏱️  Request timeout`);
+            request.destroy();
+            resolve(null);
+        });
+    });
+}
+
+// --- Helper: Fallback - Get geolocation from IP if coordinates not available ---
+function getGeolocationFromIP(ip) {
+    return new Promise((resolve) => {
+        const url = `https://ip-api.com/json/${ip}?fields=country,city,lat,lon,status,message`;
         
         const request = https.get(url, { timeout: 5000 }, (res) => {
             let data = '';
@@ -81,26 +131,23 @@ function getGeolocation(ip) {
             res.on('end', () => {
                 try {
                     const parsed = JSON.parse(data);
-                    console.log(`   📡 API Response:`, JSON.stringify(parsed));
+                    console.log(`   📡 IP Geolocation Response:`, JSON.stringify(parsed));
                     
                     if (parsed.status === 'success') {
                         const result = {
-                            ip: parsed.query || ip,
                             country: parsed.country || 'Unknown',
                             city: parsed.city || 'Unknown',
                             lat: parsed.lat !== undefined ? parsed.lat : 0,
-                            lng: parsed.lon !== undefined ? parsed.lon : 0,
-                            isp: parsed.isp || parsed.org || 'Unknown'
+                            lng: parsed.lon !== undefined ? parsed.lon : 0
                         };
-                        console.log(`   ✅ Geolocation parsed:`, result);
+                        console.log(`   ✅ IP Geolocation found:`, result);
                         resolve(result);
                     } else {
-                        console.log(`   ⚠️ API returned status: ${parsed.status}, message: ${parsed.message}`);
+                        console.log(`   ⚠️ No geolocation data available`);
                         resolve(null);
                     }
                 } catch (e) {
                     console.log(`   ❌ JSON parse error:`, e.message);
-                    console.log(`   Raw data:`, data);
                     resolve(null);
                 }
             });
@@ -138,7 +185,7 @@ io.on('connection', (socket) => {
 // --- 2. API Endpoint for your website (ankit.pro) ---
 app.post('/api/report-visit', async (req, res) => {
     try {
-        const { page, pageName, pageHost, userAgent, platform, language, timezone, screenWidth, screenHeight, referrer, timestamp } = req.body;
+        const { page, pageName, pageHost, userAgent, platform, language, timezone, screenWidth, screenHeight, referrer, timestamp, latitude, longitude } = req.body;
         
         // Get visitor IP from request headers
         const ip = getVisitorIP(req);
@@ -162,27 +209,30 @@ app.post('/api/report-visit', async (req, res) => {
         console.log(`   Timezone: ${timezone}`);
         console.log(`   Screen: ${screenWidth}x${screenHeight}`);
         
-        // Fetch geolocation on the server (no CORS issues!)
-        console.log(`\n🔍 Fetching geolocation from IP...`);
-        const geoData = await getGeolocation(ip);
+        // Fetch geolocation - prioritize browser location, fallback to IP
+        let geoData = null;
+        if (latitude && longitude) {
+            console.log(`\n🔍 Browser location available - reverse geocoding...`);
+            geoData = await reverseGeocode(latitude, longitude);
+        } else {
+            console.log(`\n🔍 Browser location not available - using IP geolocation...`);
+            geoData = await getGeolocationFromIP(ip);
+        }
         
         let city = 'Unknown';
         let country = 'Unknown';
         let lat = 0;
         let lng = 0;
-        let isp = 'Unknown';
         
         if (geoData) {
             city = geoData.city;
             country = geoData.country;
             lat = geoData.lat;
             lng = geoData.lng;
-            isp = geoData.isp;
             
             console.log(`   ✅ City: ${city}`);
             console.log(`   ✅ Country: ${country}`);
             console.log(`   ✅ Coordinates: ${lat}, ${lng}`);
-            console.log(`   ✅ ISP: ${isp}`);
         } else {
             console.log(`   ⚠️ Geolocation unavailable`);
         }
@@ -198,7 +248,6 @@ app.post('/api/report-visit', async (req, res) => {
             country: country,
             lat: lat,
             lng: lng,
-            isp: isp,
             
             // Page
             page: page,
