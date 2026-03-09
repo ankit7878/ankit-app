@@ -246,8 +246,8 @@ app.post('/api/report-visit', async (req, res) => {
             ip: ip,
             city: city,
             country: country,
-            lat: lat,
-            lng: lng,
+            lat: latitude,
+            lng: longitude,
             
             // Page
             page: page,
