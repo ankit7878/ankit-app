@@ -2,16 +2,37 @@ require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const https = require('https');
 
 const userRoutes = require('./routes/userRoutes');
 const booksRoutes = require('./routes/booksRoutes');
 
 const app = express();
 app.use(express.json());
-const server = http.createServer(app);
+
+// Try to load SSL certificates for HTTPS
+let server;
+try {
+    const certPath = path.join(__dirname, '../ssl/cert.pem');
+    const keyPath = path.join(__dirname, '../ssl/key.pem');
+    
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+        const cert = fs.readFileSync(certPath);
+        const key = fs.readFileSync(keyPath);
+        server = https.createServer({ cert, key }, app);
+        console.log('✅ HTTPS server created with SSL certificates');
+    } else {
+        server = http.createServer(app);
+        console.log('⚠️ SSL certificates not found, using HTTP server');
+    }
+} catch (err) {
+    console.log('⚠️ Error loading SSL certificates, using HTTP server');
+    server = http.createServer(app);
+}
 
 connectDB();
 
@@ -188,12 +209,14 @@ app.post('/api/report-visit', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 1234;
 // Start the server on all network interfaces
 server.listen(PORT, '0.0.0.0', () => {
+    const protocol = server instanceof https.Server ? 'HTTPS' : 'HTTP';
     console.log(`-----------------------------------------`);
-    console.log(`📡 Server running on port: ${PORT}`);
-    console.log(`🔗 Local: http://localhost:${PORT}`);
-    console.log(`📱 For Android Emulator: http://10.0.2.2:${PORT}`);
+    console.log(`📡 ${protocol} Server running on port: ${PORT}`);
+    console.log(`🔗 Local: ${protocol.toLowerCase()}://localhost:${PORT}`);
+    console.log(`📱 For Android Emulator: ${protocol.toLowerCase()}://10.0.2.2:${PORT}`);
+    console.log(`🌐 Remote: ${protocol.toLowerCase()}://139.59.66.219:${PORT}`);
     console.log(`-----------------------------------------`);
 });
