@@ -72,31 +72,47 @@ function getVisitorIP(req) {
 // --- Helper: Fetch geolocation using built-in https module ---
 function getGeolocation(ip) {
     return new Promise((resolve) => {
-        const url = `https://ip-api.com/json/${ip}?fields=query,country,city,lat,lon,isp,org`;
+        const url = `https://ip-api.com/json/${ip}?fields=query,country,city,lat,lon,isp,org,status,message`;
         
-        https.get(url, { timeout: 5000 }, (res) => {
+        const request = https.get(url, { timeout: 5000 }, (res) => {
             let data = '';
             res.on('data', chunk => { data += chunk; });
             res.on('end', () => {
                 try {
                     const parsed = JSON.parse(data);
+                    console.log(`   📡 API Response:`, JSON.stringify(parsed));
+                    
                     if (parsed.status === 'success') {
-                        resolve({
-                            ip: parsed.query,
-                            country: parsed.country,
-                            city: parsed.city,
-                            lat: parsed.lat,
-                            lng: parsed.lon,
+                        const result = {
+                            ip: parsed.query || ip,
+                            country: parsed.country || 'Unknown',
+                            city: parsed.city || 'Unknown',
+                            lat: parsed.lat !== undefined ? parsed.lat : 0,
+                            lng: parsed.lon !== undefined ? parsed.lon : 0,
                             isp: parsed.isp || parsed.org || 'Unknown'
-                        });
+                        };
+                        console.log(`   ✅ Geolocation parsed:`, result);
+                        resolve(result);
                     } else {
+                        console.log(`   ⚠️ API returned status: ${parsed.status}, message: ${parsed.message}`);
                         resolve(null);
                     }
                 } catch (e) {
+                    console.log(`   ❌ JSON parse error:`, e.message);
+                    console.log(`   Raw data:`, data);
                     resolve(null);
                 }
             });
-        }).on('error', () => {
+        });
+        
+        request.on('error', (err) => {
+            console.log(`   ❌ Request error:`, err.message);
+            resolve(null);
+        });
+        
+        request.on('timeout', () => {
+            console.log(`   ⏱️  Request timeout`);
+            request.destroy();
             resolve(null);
         });
     });
@@ -179,8 +195,8 @@ app.post('/api/report-visit', async (req, res) => {
             ip: ip,
             city: city,
             country: country,
-            latitude: lat,
-            longitude: lng,
+            lat: lat,
+            lng: lng,
             isp: isp,
             
             // Page
