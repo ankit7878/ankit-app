@@ -14,25 +14,35 @@ const booksRoutes = require('./routes/booksRoutes');
 const app = express();
 app.use(express.json());
 
-// Try to load SSL certificates for HTTPS
-let server;
-try {
-    const certPath = path.join(__dirname, '../ssl/cert.pem');
-    const keyPath = path.join(__dirname, '../ssl/key.pem');
-    
-    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-        const cert = fs.readFileSync(certPath);
-        const key = fs.readFileSync(keyPath);
-        server = https.createServer({ cert, key }, app);
-        console.log('✅ HTTPS server created with SSL certificates');
-    } else {
-        server = http.createServer(app);
-        console.log('⚠️ SSL certificates not found, using HTTP server');
-    }
-} catch (err) {
-    console.log('⚠️ Error loading SSL certificates, using HTTP server');
-    server = http.createServer(app);
+// Enforce HTTPS only
+const certPath = '/etc/letsencrypt/live/anil.dev/fullchain.pem';
+const keyPath = '/etc/letsencrypt/live/anil.dev/privkey.pem';
+
+if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    console.error('❌ FATAL ERROR: Let\'s Encrypt certificates not found!');
+    console.error(`   Expected: ${certPath}`);
+    console.error(`   Expected: ${keyPath}`);
+    console.error('❌ Cannot start server without HTTPS certificates.');
+    process.exit(1);
 }
+
+const cert = fs.readFileSync(certPath);
+const key = fs.readFileSync(keyPath);
+const server = https.createServer({ cert, key }, app);
+console.log('✅ HTTPS server created with Let\'s Encrypt certificates');
+
+// Middleware: Enforce HTTPS only
+app.use((req, res, next) => {
+    if (req.protocol !== 'https') {
+        return res.status(403).json({ error: 'HTTPS only. Insecure connections not allowed.' });
+    }
+    // Add security headers
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+});
 
 connectDB();
 
@@ -212,11 +222,12 @@ app.post('/api/report-visit', async (req, res) => {
 const PORT = process.env.PORT || 1234;
 // Start the server on all network interfaces
 server.listen(PORT, '0.0.0.0', () => {
-    const protocol = server instanceof https.Server ? 'HTTPS' : 'HTTP';
-    console.log(`-----------------------------------------`);
-    console.log(`📡 ${protocol} Server running on port: ${PORT}`);
-    console.log(`🔗 Local: ${protocol.toLowerCase()}://localhost:${PORT}`);
-    console.log(`📱 For Android Emulator: ${protocol.toLowerCase()}://10.0.2.2:${PORT}`);
-    console.log(`🌐 Remote: ${protocol.toLowerCase()}://139.59.66.219:${PORT}`);
-    console.log(`-----------------------------------------`);
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`🔐 HTTPS-ONLY SERVER`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`📡 Server running on port: ${PORT}`);
+    console.log(`🔗 Local: https://localhost:${PORT}`);
+    console.log(`🌐 Remote: https://anil.dev:${PORT}`);
+    console.log(`🛡️  Security: HTTPS enforced, all HTTP requests rejected`);
+    console.log(`${'='.repeat(60)}\n`);
 });
