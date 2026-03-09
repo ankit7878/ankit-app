@@ -72,7 +72,7 @@ function getVisitorIP(req) {
 // --- Helper: Fetch geolocation using built-in https module ---
 function getGeolocation(ip) {
     return new Promise((resolve) => {
-        const url = `https://ip-api.com/json/${ip}?fields=query,country,city,lat,lon,isp,org,status,message`;
+        const url = `https://geolite.maxmind.com/geoip/v2.1/city/${ip}`;
         
         const request = https.get(url, { timeout: 5000 }, (res) => {
             let data = '';
