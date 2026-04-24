@@ -10,6 +10,7 @@ const cors = require('cors');
 
 const userRoutes = require('./routes/userRoutes');
 const booksRoutes = require('./routes/booksRoutes');
+const codingLeagueRoutes = require('./routes/codingLeagueRoutes');
 
 const app = express();
 app.use(express.json());
@@ -48,6 +49,7 @@ connectDB();
 
 app.use('/api/users', userRoutes);
 app.use('/api/books', booksRoutes);
+app.use('/api/coding_league', codingLeagueRoutes);
 
 app.get('/', (req, res) => res.send('API running'));
 
