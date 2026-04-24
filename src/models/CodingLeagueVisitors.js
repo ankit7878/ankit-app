@@ -7,5 +7,4 @@ const CodingLeagueVisitors = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('CodingLeagueVisitor', CodingLeagueVisitors);
-// module.exports = mongoose.model('codingLeague', CodingLeagueVisitors);
+module.exports = mongoose.model('codingLeague', CodingLeagueVisitors);
