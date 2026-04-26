@@ -10,7 +10,9 @@ const cors = require('cors');
 
 const userRoutes = require('./routes/userRoutes');
 const booksRoutes = require('./routes/booksRoutes');
+const ankitProRoutes = require('./routes/ankitProRoutes');
 const codingLeagueRoutes = require('./routes/codingLeagueRoutes');
+const suggestMeMoreRoutes = require('./routes/suggestMeMoreRoutes');
 
 const app = express();
 app.use(express.json());
@@ -49,7 +51,9 @@ connectDB();
 
 app.use('/api/users', userRoutes);
 app.use('/api/books', booksRoutes);
+app.use('/api/ankit_pro', ankitProRoutes);
 app.use('/api/coding_league', codingLeagueRoutes);
+app.use('/api/suggest_me_more', suggestMeMoreRoutes);
 
 app.get('/', (req, res) => res.send('API running'));
 

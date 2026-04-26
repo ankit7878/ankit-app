@@ -1,8 +1,8 @@
-const CodingLeagueVisitors = require('../models/CodingLeagueVisitors');
+const CodingLeagueDetails = require('../models/CodingLeagueDetails');
 
-exports.getVisitors = async (req, res) => {
+exports.getDetails = async (req, res) => {
   try {
-    const visitors = await CodingLeagueVisitors.findById("69eb51bcb246de335234c931");
+    const visitors = await CodingLeagueDetails.findById("69eb51bcb246de335234c931");
     res.json(visitors);
   } catch (err) {
     res.status(500).json({ message: err.message });
